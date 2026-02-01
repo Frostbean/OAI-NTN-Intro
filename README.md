@@ -42,15 +42,15 @@ Note: The purpose of these tables is not to exhaustively cover all NTN enhanceme
 ![image](https://www.3gpp.org/images/2024/NTN_Fig2.jpg)
 **Transparent** vs. **Regenerative** payload and elliptic beam patterns [1]
 
-![image](https://hackmd.io/_uploads/By2xanhIWl.png)
+![image](https://media.discordapp.net/attachments/1175780348093792427/1467566469268115670/By2xanhIWl.png?ex=6980d948&is=697f87c8&hm=9140923a6c383c43ae04880ff91822c496cf4c80c0a9b572dc93572a4a38c9a5&=&format=webp&quality=lossless&width=326&height=645)
 
 Overall illustration of an NTN with transparent payload [2]
 
-![image](https://hackmd.io/_uploads/Byp763hUZx.png)
+![image](https://media.discordapp.net/attachments/1175780348093792427/1467566469603791020/Byp763hUZx.png?ex=6980d948&is=697f87c8&hm=26f5fcd93117bfe673e2a8f2b3a24d49672a000a7cae5072f1ec5d97fa3936b2&=&format=webp&quality=lossless&width=765&height=678)
 
 Overall illustration of an NTN with **regenerative** payload hosting a gNB  [2]
 
-![image](https://hackmd.io/_uploads/rkP5p33Ubx.png)
+![image](https://media.discordapp.net/attachments/1175780348093792427/1467566470069354537/rkP5p33Ubx.png?ex=6980d948&is=697f87c8&hm=86677354edc09628152585a5ff9d3650a49b1b46de3e5d395f90fdffefd40be2&=&format=webp&quality=lossless&width=947&height=662)
 
 Illustration of timing relationship, including $T_{\text{TA}}$, service link RTT, common TA, and $k_{\text{mac}}$  (for collocated gNB and NTN Gateway) [2]
 
@@ -74,25 +74,22 @@ Service Link Types, including **Earth-fixed**, **Quasi-Earth-fixed**, **Earth-mo
 | $k_{\text{mac}}$ | Configured offset approximately equal to the RTT between RP and gNB, used to delay when a downlink configuration indicated by MAC CE takes effect (also used for UE–gNB RTT related procedures). |
 
 The overall TA is computed as:
-\begin{split}
-\text{Terrestrial Networks (TN): }T_{\text{TA}} &= (N_{\text{TA}}+N_{\text{TA,offset}}) * T_{c}
-\\
-\text{Non-Terrestrial Networks (NTN): }T_{\text{TA}} &= (N_{\text{TA}} + N_{\text{TA,offset}} + N_{\text{TA,adj}}^{\text{common}} + N_{\text{TA,adj}}^{\text{UE}}) * T_{c}
-\end{split}
+
+$T_{\text{TA}} = (N_{\text{TA}} + N_{\text{TA,offset}} + N_{\text{TA,adj}}^{\text{common}} + N_{\text{TA,adj}}^{\text{UE}}) * T_{c}$
+
 where $N_{\text{TA}}$ denotes the closed-loop TA which can be updated based on TA Command, $N_{\text{TA,offset}}$ is a fixed offset related
 to frequency as in terrestrial networks, $T_{c}$ is the basic time
 unit, and $N_{\text{TA,adj}}^{\text{common}}$ and $N_{\text{TA,adj}}^{\text{UE}}$ are open-loop TA which corresponds to common TA and UE-specific TA, respectively. [4]
 
-![image](https://hackmd.io/_uploads/r11WH6hU-x.png)
+![image](https://media.discordapp.net/attachments/1175780348093792427/1467566470434132121/r11WH6hU-x.png?ex=6980d948&is=697f87c8&hm=cdd8bf8fe8ed506912f15efde36e879d9af49c9ad3b70acfbc156f2e464f0186&=&format=webp&quality=lossless&width=996&height=744)
 
 Pictorial view of the TA calculation in NTN, and UL/DL radio frame timing at the NTN UE [5]
 
-
-![image](https://hackmd.io/_uploads/HyVyZa3U-g.png)
+![image](https://media.discordapp.net/attachments/1175780348093792427/1467566470845436239/HyVyZa3U-g.png?ex=6980d948&is=697f87c8&hm=9a1372e92cc53df739728e63a9a55970b3b09144c6f47948d0e0cf28cc7e6d59&=&format=webp&quality=lossless&width=1299&height=744)
 
 An illustration of PUSCH transmission timing with and without $K_{\text{offset}}$ enhancement [5]
 
-![image](https://hackmd.io/_uploads/HJVS-6nL-l.png)
+![image](https://media.discordapp.net/attachments/1175780348093792427/1467566471126319116/HJVS-6nL-l.png?ex=6980d948&is=697f87c8&hm=f7129b0d61f6ac38f2bf1d099090ab03aa2ddc399e4f88871b609fb5b445fc72&=&format=webp&quality=lossless&width=1575&height=744)
 
 An illustration of MAC CE timing relationship with and without $k_{\text{mac}}$ enhancement when downlink and uplink frame timing are not aligned at gNB [5]
 
