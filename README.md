@@ -1,116 +1,304 @@
-# OAI NTN 開源社群開發導引與架構剖析
+# OAI NTN Open Source Development Guide and Architecture Analysis
 
-## OAI NTN 核心術語對照表
-1. 時間與同步補償 (Timing & Sync)：這是 NTN 最核心的修改部分，用於解決衛星與地面間巨大的傳播延遲。 請自行畫圖或找出參考資料呈現這些時間參數的意義。
+## Key 5G NTN Terminologies Table (Rel-17)
 
-|術語 (Symbol) | 全名 (Full Name) | 說明與 OAI 實作重點|
-|-- | -- | --|
-|$T_{\text{TA}}$ | Timing Advance | 提前發送量。UE 必須比預期時間更早發送訊號，以補償長距離傳輸延遲。|
-|$N_{\text{TA}}$ | Timing Advance Offset | OAI 中用於調整上行鏈路定時的偏移值，NTN 的數值遠大於地面網路。|
-|$K_{\text{offset}}$ | Scheduling Offset | 調度偏移。考慮到衛星往返延遲（RTT），gNB 指令發出後，UE 需要額外的等待時間才能執行。|
-|$N_{\text{TA,adj}}^{\text{common}}$ | Common Timing Advance | 衛星覆蓋範圍內所有 UE 共有的延遲部分（通常指衛星到網關的距離）。|
-|$N_{\text{TA,adj}}^{\text{UE}}$ | UE-specific Timing Advance | 個別 UE 因位置不同而產生的額外延遲補償。|
+To help readers who are familiar with 5G but not with the NTN enhancements introduced in Rel-17 quickly grasp the key concepts, the following tables summarize the fundamental aspects of NTN at both the physical layer and protocol layer.
 
-2. 軌道與幾何參數 (Orbits & Geometry)
-在 OAI 的 rfsimulator 或 gnb_config 中，常用於定義衛星運動。
+Unless otherwise stated, the terminology in these tables is primarily derived from Clause 16.14 Non-Terrestrial Networks of TS 38.300.
 
-|術語 | 全名 | 說明|
-|-- | -- | --|
-|Ephemeris | 星曆資料 | 描述衛星位置與速度的數據，OAI 支援透過 TLE 或 PVT (Position, Velocity, Time) 輸入。|
-|Doppler Shift | 多普勒頻移 | 因衛星高速移動產生的頻率偏差，OAI PHY 層需進行頻率補償。|
-|Propagation Delay | 傳播延遲 | 訊號在空間中傳輸的時間，LEO 約 10-40ms，GEO 則高達 250-270ms。|
+Note: The purpose of these tables is not to exhaustively cover all NTN enhancements, nor to provide perfectly formal or complete definitions.
 
-3. 網路架構與模式 (Architecture Modes)
-請畫圖說明網路架構，標示以下術語
+### Primary spec sources
 
-|術語 | 全名 | 說明|
-|-- | -- | --|
-|Transparent Payload | 透明轉發模式 | 衛星僅作為「空中反射鏡」，不處理協議棧，gNB 留在地面。這是目前 OAI NTN 主要支援的模式。|
-|Regenerative Payload | 再生處理模式 | 衛星上搭載全部或部分 gNB 功能（如 gNB-DU），具有處理封包的能力。|
-|SAN | Satellite Access Node | 3GPP 中對衛星基地台設備的統稱。|
-|NTN-GW | NTN Gateway | 負責將地面核心網訊號傳送到衛星的地面站。|
-|Feeder Link | 饋送鏈路 | 衛星與地面站 (Gateway/gNB) 之間的連線。|
-|Service Link | 服務鏈路 | 衛星與終端用戶 (UE) 之間的連線。|
+- **TS 38.300 — *NR and NG-RAN Overall Description***
+  - **Clause 16.14 — *Non-Terrestrial Networks***: Provides the overall NTN RAN architecture and a high-level summary of key NTN enhancements (e.g., timing/synchronization, frequency aspects, and mobility).
 
-**以下資訊請確認，並標示章節名稱：**
+- **TS 38.213 — *Physical layer procedures for control***
+  - **Clause 4.2 — *Transmission timing adjustments***: Specifies the control procedures and signaling related to uplink transmission timing (e.g., how TA is applied/updated and under what conditions timing adjustments are triggered).
 
-| 核心領域 | 關鍵術語 | 3GPP 規範編號 (Rel-17) | 對應章節 | 說明 |
-| -- | -- | -- | -- | -- |
-| 總體架構 | NTN Architecture | TS 38.300 | 16.14	Non-Terrestrial Networks | 概述 NTN 的整體架構、透明模式 (Transparent) 與再生模式 (Regenerative)。|
-|物理層程序 | Timing Advance ($T_{TA}$, $N_{TA}$), $K_{offset}$ | TS 38.213 |  | 這是最重要的一份。詳細定義了上行鏈路定時、隨機接入 (RACH) 以及 $K_{offset}$ 的計算公式。|
-|無線資源控制 | NTN-Config, Cell Selection | TS 38.331 | | 定義 RRC 訊息中的 NTN 參數欄位，例如星曆資訊 (Ephemeris) 的格式。|
-|媒體存取控制 | HARQ 停用/優化 | TS 38.321 |  | 討論在高延遲環境下，如何處理 MAC 層的 HARQ 回饋機制（或將其停用）。|
-|軌道模型 | Ephemeris (PVT/TLE) | TS 38.101-5 |  | 定義衛星終端 (UE) 與基地台 (gNB) 的無線射頻特性與軌道模型規範。|
+- **TS 38.211 — *Physical channels and modulation***
+  - **Clause 4.3.1 — *Frames and subframes***: Defines the NR frame/subframe structure and the basic timing reference used by PHY timing expressions (useful when mapping TA-related quantities to time units such as $T_{c}$).
 
-## 第一章：OAI NTN 計畫背景
-### 1.1 專案源起： 介紹 OAI 如何從原本的 Terrestrial (地面) 5G 演進到支援 3GPP Rel-17 NTN 標準。
+- **TS 38.321 — *Medium Access Control (MAC) protocol specification***
+  - **Clause 5.3.2.2 and Clause 5.7**: Defines downlink HARQ operation, including per-HARQ-process enabling/disabling of HARQ feedback (used in NTN to mitigate HARQ stalling).
+  - **Clause 5.4.3.1 and Clause 5.7**: Defines uplink HARQ mode configuration (HARQ mode A / HARQ mode B) per HARQ process.
 
-OAI 對於 NTN 標準的支援始於歐洲太空總署（European Space Agency, ESA）支持的兩個計畫：[5G-GOA](https://connectivity.esa.int/archives/projects/5ggoa) 及 [5G-LEO](https://connectivity.esa.int/archives/projects/5gleo)。
+- **TS 38.331 — *Radio Resource Control (RRC) protocol specification***
+  - **Clause 6.3.1 — *System information blocks (SIBs), SIB19***: Provides the ASN.1 definitions for SIB19, including NTN-related broadcast information (e.g., `ntn-Config` and other NTN assistance fields).
 
-| 計畫     | 5G-GOA                                                                                                                                   | 5G-LEO                                                                                                      |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 目標     | 根據 3GPP Rel-17，於 OAI 上實作 NTN 所需的修改，完成與實際運行的 GEO, Transparent Payload 衛星的對接測試                                       | 延伸 OAI 程式碼至支援 LEO, Transparent Payload 衛星模擬                                                     |
-| 時間     | 2021/02~2024/04                                                                                                                          | 2021/12~                                                                                                    |
-| 成員     | Eurescom GmbH、Fraunhofer Institute for Integrated Circuits (IIS)、Universität der Bundeswehr München、University of Luxembourg、Eurecom | Eurescom GmbH、Fraunhofer Institute for Integrated Circuits (IIS)、University of Luxembourg、Allbesmart LDA |
-| 實作內容 | PHY及更上層的修改，包括同步、timers 及 random access procedure 等技術                                                                    |                                                                                                             |
-| 貢獻     | 開發並發布於 OAI [goa-5g-ntn](https://gitlab.eurecom.fr/oai/openairinterface5g/-/commits/goa-5g-ntn) 分支，後續整合進 develop 分支       | 開發並發布於 develop 分支                                                                                   |
+### 1) System architecture
 
-### 1.2 開源社群現狀： 說明目前主要貢獻者（如 ESA, Fraunhofer IIS, Eurecom 等）及其在社群中的地位。
+| Term | Description |
+|---|---|
+| Transparent Payload | The satellite only relays signals and does not run the RAN protocol stack; the gNB stays on the ground. |
+| Regenerative Payload | The satellite hosts all or part of the gNB functions (e.g., gNB-DU) and can process packets/protocols.|
+| NTN-GW | Ground gateway that forwards traffic between the terrestrial network/core and the satellite. |
+| Feeder Link | Link between the satellite and the ground station (Gateway/gNB). |
+| Service Link | Link between the satellite and the user equipment (UE). |
+| earth-fixed cell | Beam/cell coverage area stays on the same geographical region on Earth over time (Earth coordinates). |
+| earth-moving cell | Beam/cell coverage area slides over the Earth surface with satellite motion. |
 
-與 OAI NTN 計畫相關的貢獻者包括
 
-| 組織                                               | 貢獻內容                                    |
-| -------------------------------------------------- | ------------------------------------------- |
-| European Space Agency, ESA                         | 5G-GOA 及 5G-LEO 計畫的出資者、支持者       |
-| Eurescom GmbH                                      |                                             |
-| Fraunhofer Institute for Integrated Circuits (IIS) | OAI 在 PHY 、 MAC 層及 RFsimulator 的修改等 |
-| Universität der Bundeswehr München                 |                                             |
-| University of Luxembourg                           |                                             |
-| Eurecom                                            |                                             |
-| Allbesmart LDA                                     |                                             |
-| Lasting Software                                   |                                             |
+![image](https://www.3gpp.org/images/2024/NTN_Fig2.jpg)
+**Transparent** vs. **Regenerative** payload and elliptic beam patterns [1]
 
-## 第二章：OAI NTN 軟體架構與關鍵技術
-### 2.1 NTN 修改範疇： 說明為了支持衛星通訊，OAI 在物理層 (PHY) 與 MAC 層做了哪些改動（例如：TA 補償、隨機接入程序修改）。
-### 2.2 模擬環境架構： 介紹如何使用 rfsimulator 模擬衛星的長延遲 (RTT) 與多普勒偏移 (Doppler Shift)。
+![image](https://hackmd.io/_uploads/By2xanhIWl.png)
 
-在 OAI 上相關的 MR：
-- for GEO：https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2712
-- for LEO：https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2893
+Overall illustration of an NTN with transparent payload [2]
 
-### 2.3 程式碼對照：
-> openairinterface5g/openair2/LAYER2/NR_MAC_gNB/ (gNB 端的 NTN 定時修改)
-openairinterface5g/targets/ARCH/rfsimulator/ (通道仿真器的實現)
+![image](https://hackmd.io/_uploads/Byp763hUZx.png)
 
-## 第三章：已完成工作 (Current Milestones)
-嘗試直接看 code 有點難切入，因此正在參閱 [5G Non-Terrestrial Networks With OpenAirInterface: An Experimental Study Over GEO Satellites](https://ieeexplore.ieee.org/document/10723292)，了解 OAI NTN 相關的修改。
+Overall illustration of an NTN with **regenerative** payload hosting a gNB  [2]
 
-### 3.1 基礎流程實作：已支援 LEO/GEO 的初始接入 (Initial Access) 與連線建立。
+![image](https://hackmd.io/_uploads/rkP5p33Ubx.png)
 
-### 3.2 定時補償機制：介紹已實現的 NTN 特定參數（如 $T_{ta}$ 補償、Common TA）。
+Illustration of timing relationship, including $T_{\text{TA}}$, service link RTT, common TA, and $k_{\text{mac}}$  (for collocated gNB and NTN Gateway) [2]
 
-### 3.3 硬體與 SDR 支援：說明目前支援的 USRP 硬體清單及運作頻段。
+![image](https://free5gc.org/blog/20240626/Service_link_types.png)
 
-根據 [USRP device documentation](https://gitlab.eurecom.fr/oai/openairinterface5g/-/tree/develop/radio/USRP)，OAI 目前支援的 USRP 包括常見的 B200, B200mini/B205mini, B210, X310, N300, N310, N320, X410。
+Service Link Types, including **Earth-fixed**, **Quasi-Earth-fixed**, **Earth-moving** [3]
 
-## 第四章：待完成工作與社群挑戰 (Future Work & To-Do List)
-> 這部分是兩位的「切入點」，應重點說明目前 OAI 官方正在徵求貢獻或尚未完善的部分，可參考https://docs.google.com/spreadsheets/d/1lHc8zCu4OynKzIa4UFOTOevQhWXOOJb-/edit?gid=185138274#gid=185138274：
+### 2) Timing advance & scheduling
 
-對於現在正在開發的功能，或許可參考 clause 16.14 Non-Terrestrial Networks of TS 38.300 
+| Term | Description |
+|---|---|
+| uplink timing reference point (RP) | DL and UL frames are aligned at the uplink time synchronization reference point (RP). See TS 38.300 and TS 38.211. |
+| service link RTT | Round-trip time over the service link (UE ↔ NTN payload). |
+| feeder link RTT | Round-trip time over the feeder link (NTN-GW ↔ NTN payload). |
+| $T_{\text{TA}}$ | The UE transmits earlier than the nominal timing to compensate for the long propagation delay. See TS 38.300, TS 38.213 and TS 38.211 |
+| $N_{\text{TA}}$ | Timing advance value/command used to adjust uplink transmission timing (in units of NR timing $T_{c}$). See TS 38.300, TS 38.213 and TS 38.211 |
+| $N_{\text{TA,offset}}$ | Offset used for DL/UL frame alignment at RP. Its default value depends on frequency, duplex mode, and coexistence with other RATs. See TS 38.300, TS 38.213 and TS 38.211 |
+| $N_{\text{TA,adj}}^{\text{common}}$ | Common TA adjustment: timing offset to compensate the propagation delay common to UE transmissions, i.e., the delay between the serving NTN payload (satellite) and RP. See TS 38.300, TS 38.213 and TS 38.211 |
+| $N_{\text{TA,adj}}^{\text{UE}}$ | UE-specific TA adjustment: timing offset to compensate the UE-specific service-link delay, i.e., the propagation delay between the UE and the serving satellite/payload. See TS 38.300, TS 38.213 and TS 38.211 |
+| $K_{\text{offset}}$ | Configured scheduling offset added to several timing relationships so that an uplink transmission occurs after the corresponding downlink reception at the UE (must be large enough considering service-link RTT and Common TA). |
+| $k_{\text{mac}}$ | Configured offset approximately equal to the RTT between RP and gNB, used to delay when a downlink configuration indicated by MAC CE takes effect (also used for UE–gNB RTT related procedures). |
 
-### 4.1 換手流程 (Handover)： 在高速移動的 LEO 衛星間切換 (Inter-satellite Handover) 的完善。
+The overall TA is computed as:
+\begin{split}
+\text{Terrestrial Networks (TN): }T_{\text{TA}} &= (N_{\text{TA}}+N_{\text{TA,offset}}) * T_{c}
+\\
+\text{Non-Terrestrial Networks (NTN): }T_{\text{TA}} &= (N_{\text{TA}} + N_{\text{TA,offset}} + N_{\text{TA,adj}}^{\text{common}} + N_{\text{TA,adj}}^{\text{UE}}) * T_{c}
+\end{split}
+where $N_{\text{TA}}$ denotes the closed-loop TA which can be updated based on TA Command, $N_{\text{TA,offset}}$ is a fixed offset related
+to frequency as in terrestrial networks, $T_{c}$ is the basic time
+unit, and $N_{\text{TA,adj}}^{\text{common}}$ and $N_{\text{TA,adj}}^{\text{UE}}$ are open-loop TA which corresponds to common TA and UE-specific TA, respectively. [4]
+
+![image](https://hackmd.io/_uploads/r11WH6hU-x.png)
+
+Pictorial view of the TA calculation in NTN, and UL/DL radio frame timing at the NTN UE [5]
+
+
+![image](https://hackmd.io/_uploads/HyVyZa3U-g.png)
+
+An illustration of PUSCH transmission timing with and without $K_{\text{offset}}$ enhancement [5]
+
+![image](https://hackmd.io/_uploads/HJVS-6nL-l.png)
+
+An illustration of MAC CE timing relationship with and without $k_{\text{mac}}$ enhancement when downlink and uplink frame timing are not aligned at gNB [5]
+
+### 3) Frequency synchronization
+
+| Term | Description |
+|---|---|
+| Doppler Shift | Frequency offset caused by the satellite’s high speed; the PHY needs frequency/Doppler compensation. |
+| Doppler compensation | Receiver-side frequency correction/tracking to counter Doppler-induced frequency shifts (Rx-side correction). |
+| Doppler pre-compensation | Transmitter-side pre-correction applied before uplink transmission so the uplink arrives frequency-aligned despite service-link Doppler (Tx-side pre-correction). |
+
+
+### 4) Orbits & geometry
+
+| Term | Description |
+|---|---|
+| Ephemeris | Orbit/state data describing the satellite/payload position and velocity over time. See TS 38.300 and TS 38.331. |
+| SIB19 | System information block used to broadcast NTN-specific information such as ephemeris and assistance information for UL time/frequency synchronization. See TS 38.300 and TS 38.331. |
+
+For a curated summary of NTN UL synchronization assistance parameters (e.g., ephemeris-related fields carried in SIB19), see [5], which extracts and organizes the relevant items from the SIB19 ASN.1 definitions.
+
+For the full ASN.1 definition of SIB19, refer to [6] (useful when implementing or parsing the RRC messages).
+
+### 5) Enhancement on Hybrid-ARQ
+
+In large-RTT NTN deployments, the stop-and-wait nature of HARQ can cause **HARQ stalling**, since the UE may need to wait much longer for DL packets or UL grants when HARQ retransmissions are used. Rel-17 mitigations include increasing the number of HARQ processes and **disabling HARQ feedback** (with reliability ensured by RLC ARQ instead of MAC HARQ retransmissions).
+
+| Term | Description |
+|---|---|
+| disabling HARQ feedback (DL) | HARQ feedback can be enabled/disabled **per HARQ process**. When feedback is disabled, there is **no MAC-layer HARQ retransmission**; reliability is handled by **RLC ARQ**. Disabling feedback also enables scheduling the same HARQ process before one HARQ RTT has elapsed. See TS 38.300 and TS 38.321. |
+| HARQ mode A (UL) | UL HARQ mode configurable **per HARQ process** (baseline UL HARQ operation; see TS 38.321 for the exact behavior). See TS 38.300 and TS 38.321. |
+| HARQ mode B (UL) | UL HARQ mode configurable **per HARQ process**. **Mode B allows scheduling a HARQ process before one HARQ RTT has elapsed since it was last scheduled**, reducing HARQ stalling under large RTT. See TS 38.300 and TS 38.321. |
+
+### 6) Mobility enhancement
+
+In NTN deployments, the beam/cell footprint may be earth-fixed or may move smoothly over the Earth surface, so the received signal strength/quality can vary more slowly than in terrestrial networks. As a result, purely RRM measurement-based CHO triggering (e.g., relying only on fast signal-level variations) may become less efficient. To better align handover triggering with predictable NTN geometry and timing, Rel-17 allows **timer-based** and **location-based** trigger conditions to be configured together with CHO, so that the UE performs the conditional handover when the measurement condition is met and the additional time/location condition is also satisfied.
+
+| Term | Description |
+|---|---|
+| CHO | Conditional Handover: UE is pre-configured with target cells and trigger conditions, and executes handover when the trigger is met. |
+| timer-based trigger condition | CHO trigger uses an additional time condition (e.g., trigger when a timer expires), used together with a measurement-based trigger. See TS 38.300 and TS 38.331 |
+| location-based trigger condition | CHO trigger uses an additional location condition (e.g., trigger when the UE reaches a configured area/position), used together with a measurement-based trigger. See TS 38.300 and TS 38.331 |
+
+### Reference of Figures
+
+[1] https://www.3gpp.org/technologies/ntn-overview
+
+[2] [TS 38.300 - 16.14 Non-Terrestrial Networks](https://www.etsi.org/deliver/etsi_ts/138300_138399/138300/17.00.00_60/ts_138300v170000p.pdf)
+
+[3] https://free5gc.org/blog/20240626/20240626/#transparent-mode
+
+[4] [Uplink Time Synchronization Method and Procedure in Release-17 NR NTN](https://ieeexplore.ieee.org/document/9860357)
+
+[5] [Physical Layer Enhancements in 5G-NR for Direct Access via Satellite Systems](https://www.researchgate.net/publication/362737767_Physical_layer_enhancements_in_5G-NR_for_direct_access_via_satellite_systems)
+
+[6] https://www.sharetechnote.com/html/5G/5G_NTN.html#NTN_Config_r17
+
+### Supplementary Materials
+
+In addition to the 3GPP specifications cited above, the following references are useful for clarifying the terminology and building intuition for Rel-17 NTN enhancements. The following materials, which we have read thoroughly, may help you build a solid foundation for 5G NTN. For NTN physical-layer enhancements, we strongly recommend the technical report **Physical Layer Enhancements in 5G-NR for Direct Access via Satellite Systems**.
+
+- **Overview of physical-layer enhancements**
+  - *Physical Layer Enhancements in 5G-NR for Direct Access via Satellite Systems*
+- **Time synchronization**
+  - *Uplink Time Synchronization Method and Procedure in Release-17 NR NTN* (covers $N_{\text{TA,adj}}^{\text{common}}$, $N_{\text{TA,adj}}^{\text{UE}}$)
+- **Timing-relationship enhancements: $K_{\text{offset}}$, $k_{\text{mac}}$**
+  - $K_{offset}$
+    - Before studying $K_{\text{offset}}$, it helps to understand basic scheduling parameters such as $K_0$, $K_1$, and $K_2$:
+      https://www.sharetechnote.com/html/5G/5G_ResourceAllocation.html
+  - $k_{\text{mac}}$
+    - TS 38.300: definition and context. See Clause 16.14.2.1 *Scheduling and Timing*
+    - *Physical Layer Enhancements in 5G-NR for Direct Access via Satellite Systems*: describes how $k_{\text{mac}}$ works in practice
+    - *ALifecom White Paper — Unlocking Connectivity Frontiers: Exploring IoT NTN Innovations*: although it focuses on IoT-NTN, it explains the relationship between $k_{\text{mac}}$ and implementation/design complexity (useful for intuition)
+      https://www.oversight24.com/wp-content/uploads/2024/04/ALifecom-White-Paper_Unlocking-Connectivity-Frontiers-Exploring-IoT-NTN-Innovations.pdf
+  - A short explanation of $k_{\text{offset}}$ and $k_{\text{mac}}$:  
+    https://www.scribd.com/document/847612531/Additional-Material-to-5G-NTN-Course
+- **Frequency synchronization**
+  - Frequency pre-compensation: appears to be left to network implementation
+  - Potential reference (not yet validated): *Ephemeris-Assisted Doppler Frequency Compensation in Satellite Communication Systems*
+- **Enhancements on Hybrid-ARQ**
+  - LTE basic procedures (HARQ background): https://www.sharetechnote.com/html/BasicProcedure_LTE_HARQ.html#ProcessID_Asynchronous_HARQ
+  - 5G/NR HARQ overview:  
+    https://www.sharetechnote.com/html/5G/5G_HARQ.html
+  - HARQ mathematical concept (video):  
+    https://youtu.be/6deFGsOG5yY?si=o83fGK-SKAHjNdko
+  - HARQ procedure walkthrough (video):  
+    https://youtu.be/SGFnqdpSOs4?si=X3M7FxMj-hMjatuS
+  - Disabling HARQ feedback (practical note):  
+    https://www.linkedin.com/posts/gleb-marchenko-72161aba_harq-5g-ntn-activity-7201575539889885184-Xzqx/
+- **Enhancements on mobility**
+  - *An Overview of Mobility Enhancements for Non-Terrestrial Networks in 3GPP 5G NR System*
+    (covers not only Rel-17 but also Rel-18 and later; still useful for a broader understanding)
+- **OAI NTN modifications and experiments for GEO**
+  - *5G Non-Terrestrial Networks With OpenAirInterface: An Experimental Study Over GEO Satellites* 
+     https://ieeexplore.ieee.org/document/10723292
+
+## Chapter 1: OAI NTN Project Background
+
+### 1.1 OAI NTN Projects
+
+OAI’s support for the 3GPP Release 17 NTN specifications started from two projects funded by the European Space Agency (ESA): [5G-GOA](https://connectivity.esa.int/archives/projects/5ggoa) and [5G-LEO](https://connectivity.esa.int/archives/projects/5gleo).
+
+| Item | 5G-GOA | 5G-LEO |
+|---|---|---|
+| Goal | Implement the required NTN modifications in OAI based on 3GPP Rel-17, and validate integration/testing with a real GEO transparent-payload satellite system. | Extend the OAI codebase to support LEO transparent-payload satellite simulation. |
+| Timeline | 2021/02–2024/04 | 2021/12–Ongoing |
+| Members | Eurescom GmbH; Fraunhofer Institute for Integrated Circuits (IIS); Universität der Bundeswehr München; University of Luxembourg; Eurecom | Eurescom GmbH; Fraunhofer Institute for Integrated Circuits (IIS); University of Luxembourg; Allbesmart LDA |
+| Implementation scope | Changes from PHY up to higher layers, including synchronization, timers, and random access procedures. |  |
+| Contribution | Developed and released on the OAI branch [goa-5g-ntn](https://gitlab.eurecom.fr/oai/openairinterface5g/-/commits/goa-5g-ntn), later integrated into the `develop` branch. | Developed and released on the `develop` branch. |
+
+
+### 1.2 Contributors
+
+Contributors related to OAI NTN projects include:
+
+- European Space Agency (ESA): Funder of 5G-GOA and 5G-LEO
+- Eurescom GmbH
+- Fraunhofer Institute for Integrated Circuits (IIS): Modifications to OAI PHY/MAC and RFsimulator
+- Universität der Bundeswehr München
+- University of Luxembourg
+- Eurecom
+- Allbesmart LDA
+- Lasting Software
+
+
+## Chapter 2: Current Milestone
+### Overview of Relating Merge Requests
+> https://docs.google.com/spreadsheets/d/1lHc8zCu4OynKzIa4UFOTOevQhWXOOJb-/edit?gid=185138274#gid=185138274
+
+- RFSimulator
+    - GEO, [!2712](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2712)
+    - LEO, [!2893](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2893)
+- NTN support gNB, [!2722](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722)
+- NTN support UE, [!2723](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2723)
+- Disable HARQ, [!2749](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2749)
+- Support 32 HARQ proc, [!2876](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2876)
+- Some fixes for NTN, [!2995](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2795)
+    - some commits of them are not listed below because...
+- SIB19
+    - gNB, [!2899](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2899)
+    - UE, [!2920](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2920), [!3019](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/3019)
+### Timing Advance
+- [gNB: change TA update interval to 100 frames instead of 10](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=8e4526e22189becf154e8649e079b045a35e0a8e)
+- [NR UE: add NTN specific parameter ta-Common and use it for initial timing advance, RA_contention_resolution_timer and RA_window_cnt](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2723/diffs?commit_id=75efcf49b9d660b8146a4936ef69821a5665de66)
+
+
+### Scheduling
+- [gNB: add NTN specific parameter cellSpecificKoffset_r17 and use it for UL scheduling](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=ccba7c875df082c924f65a65c5b8ec2996d5d624)
+- [gNB: fix phytest scheduler in case no HARQ processes are available](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=6b01cfb8e2f0892c6edead8d57b6796688da3a55)
+- [gNB: add sr_ProhibitTimer_v1700](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=4cdf4d61f3350003ef1f0ff7074ea95b579d9e88)
+- [gNB: make SR timers configurable in CONF file](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=90fa3d5534001676e0dc98ed311e371fb3f56981)
+- [gNB: make ue_TimersAndConstants configurable via conf file](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=f1938acbab0d75f1591eb021b7760c611f5c3de6)
+- [
+NR UE: add NTN specific parameter cellSpecificKoffset_r17 and use it for UL scheduling](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2723/diffs?commit_id=26175c5413219f26d299d242ebdbd29796b23e4a)
+- [
+NR UE: increase DURATION_RX_TO_TX by cellSpecificKoffset_r17](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2723/diffs?commit_id=021f97cf10adffb15397b1d9ae05321d78ede337)
+- [NR UE: use sr_ProhibitTimer_v1700 if present](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2723/diffs?commit_id=1e473112597cf4f87cfb76256ac4c1306ba1be26)
+- [gNB: consider NTN_Koffset when scheduling PRACH](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2995/diffs?commit_id=64380eaca2add4f4b6b4d4af6211ed53267651f0)
+
+### Frequency Synchronization
+### Initial Access (Random Access Procedure)
+- [gNB: use 2 * K2 for contention_resolution_timer, as the timer starts with Msg2...](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=be41a4ea60cd83c89af94ae906dc90b1a168cb31)
+<!-- 2.1 NTN 修改範疇： 說明為了支持衛星通訊，OAI 在物理層 (PHY) 與 MAC 層做了哪些改動（例如：TA 補償、隨機接入程序修改）。 -->
+<!-- 3.1 基礎流程實作：已支援 LEO/GEO 的初始接入 (Initial Access) 與連線建立。 -->
+<!-- ### 3.2 定時補償機制：介紹已實現的 NTN 特定參數（如 $T_{ta}$ 補償、Common TA）。 -->
+
+### Enhancements on HARQ
+- [gNB: make checks for missed feedbacks more robust w.r.t. frame number warp-around in find_harq()](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2722/diffs?commit_id=0ce0282238e617bb3758275723b21503f7bf7adb)
+- [MR-Disable HARQ](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2749/commits)
+- [MR-Support 32 HARQ proc](https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2876)
+
+### SIB19
+
+### Simulation with RFSimulator (Long Propagation Delay & Doppler Shift)
+<!-- 2.2 模擬環境架構： 介紹如何使用 rfsimulator 模擬衛星的長延遲 (RTT) 與多普勒偏移 (Doppler Shift)。 -->
+
+Related MRs:
+- for GEO https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2712
+- for LEO https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/2893
+
+### USRP Hardware Support
+<!-- 3.3 硬體與 SDR 支援：說明目前支援的 USRP 硬體清單及運作頻段。 -->
+
+According to [USRP device documentation](https://gitlab.eurecom.fr/oai/openairinterface5g/-/tree/develop/radio/USRP), OAI currently supports USRP devices including B200, B200mini/B205mini, B210, X310, N300, N310, N320, X410.
+
+## Chapter 3: Future Work & To-Do List
+<!-- ### 4.1 換手流程 (Handover)： 在高速移動的 LEO 衛星間切換 (Inter-satellite Handover) 的完善。
 ### 4.2 下行同步優化： 針對更極端多普勒頻移下的同步演算法改進。
 ### 4.3 協定效能最佳化： 解決在高延遲環境下 TCP 吞吐量下降的問題（涉及 HARQ 機制的優化）。
-### 4.4 大規模模擬測試： 目前多為單一 UE 仿真，缺乏多用戶在大範圍覆蓋下的效能評估。
+### 4.4 大規模模擬測試： 目前多為單一 UE 仿真，缺乏多用戶在大範圍覆蓋下的效能評估。 -->
+### Handover
 
+### Optimization of Downlink Synchronization
 
+### WIP
+<!-- > 兩位可使用以下三個方法在報告中列出「待完成」功能：
+> 1. 查閱 GitLab Issue： 到 OAI 的官方 GitLab 搜尋標籤為 NTN 的 Issues。
+> 2. 比對 3GPP 標準： 將目前的 OAI 代碼與 3GPP TS 38.300 (Rel-17 NTN 部分) 進行對照，看看哪些 RRC 訊息或參數尚未在程式碼中定義。
+> 3. 分析開發日誌 (Changelog)： 觀察最近的 Commit，看看開發者們在討論什麼技術痛點。 -->
 
-## 第五章：如何參與 OAI 開源開發 (Developer Guide)
-> 可參考：https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/code-style-contrib.md
+## Chapter 4: Developer Guide
+> https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/code-style-contrib.md
 
-### 5.1 開發環境建置： 快速教導如何使用 Docker 編譯與運行 OAI NTN。
+### Build OAI NTN
 
-參考 [How to run a NTN configuration](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/RUNMODEM.md#how-to-run-a-ntn-configuration) 可以找到 GEO 及 LEO 衛星模擬的設定。(目前已有根據以下設定跑通測試，確認 UE 與 gNB 能夠相連)
+[How to run a NTN configuration](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/RUNMODEM.md#how-to-run-a-ntn-configuration) introduces settings for simulating GEO and LEO satellite.
 
 #### GEO Simulation
 
@@ -142,21 +330,12 @@ cd cmake_targets
 sudo ./ran_build/build/nr-uesoftmodem -O ../targets/PROJECTS/GENERIC-NR-5GC/CONF/ue.conf --band 254 -C 2488400000 --CO -873500000 -r 25 --numerology 0 --ssb 60 --rfsim --rfsimulator.prop_delay 20 --rfsimulator.options chanmod --time-sync-I 0.1 --ntn-initial-time-drift -46 --initial-fo 57340 --cont-fo-comp 2
 ```
 
-### 5.2 Git 工作流： 說明如何向 GitLab 提交 Merge Request (MR)，以及 CI/CD 測試流程。
+### GitLab Workflow
 
-### 5.3 相關文件獲取： 介紹3GPP TS 38.300/38.213 等相關 NTN 標準文件。
-> 兩位可使用以下三個方法在報告中列出「待完成」功能：
-> 1. 查閱 GitLab Issue： 到 OAI 的官方 GitLab 搜尋標籤為 NTN 的 Issues。
-> 2. 比對 3GPP 標準： 將目前的 OAI 代碼與 3GPP TS 38.300 (Rel-17 NTN 部分) 進行對照，看看哪些 RRC 訊息或參數尚未在程式碼中定義。
-> 3. 分析開發日誌 (Changelog)： 觀察最近的 Commit，看看開發者們在討論什麼技術痛點。
-
-
-## 附錄
-### Bug Report 撰寫練習
-
-### Code Review 範例
-
-## 參考資料
+## Appendix
+### Example of Bug Report
+### Example of Code Review
+### 其他參考資料
 
 規格的描述相當抽象，需要額外的閱讀材料輔助理解。以下是已經大致閱讀完畢的補充材料，
 
@@ -175,11 +354,6 @@ https://www.recast.ncu.edu.tw/static/file/17/1017/img/211/409626021.pdf
     - 通訊仰角
     - 衛星軌道參數對通訊的影響，例如 time/frequency synchronization
 
-[Physical layer enhancements in 5G-NR for direct access via satellite systems](https://onlinelibrary.wiley.com/doi/abs/10.1002/sat.1461)
-- 業界專家介紹 3GPP 在 Rel-17 對 Physical layer for NTN 的進一步優化，例如：
-    - Enhancement on UL time and frequency synchronization
-    - Enhancements on Hybrid-ARQ
+[3GPP NTN Questions](/4xCZ46aVSlSe3d3rPh2RJw)
 
-[Uplink Time Synchronization Method and
-Procedure in Release-17 NR NTN](https://ieeexplore.ieee.org/document/9860357)
-- 業界專家詳細介紹 3GPP 在 Rel-17 對 time synchronization for NTN 的進一步優化
+TS 38.101-5, https://gitlab.eurecom.fr/oai/openairinterface5g/-/merge_requests/3093/diffs?commit_id=db629e6b585a3d0d5453fac5bedbb354ad2a94d1
