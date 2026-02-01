@@ -197,22 +197,22 @@ OAI’s support for the 3GPP Release 17 NTN specifications started from two proj
 | Goal | Implement the required NTN modifications in OAI based on 3GPP Rel-17, and validate integration/testing with a real GEO transparent-payload satellite system. | Extend the OAI codebase to support LEO transparent-payload satellite simulation. |
 | Timeline | 2021/02–2024/04 | 2021/12–Ongoing |
 | Members | Eurescom GmbH; Fraunhofer Institute for Integrated Circuits (IIS); Universität der Bundeswehr München; University of Luxembourg; Eurecom | Eurescom GmbH; Fraunhofer Institute for Integrated Circuits (IIS); University of Luxembourg; Allbesmart LDA |
-| Implementation scope | Changes from PHY up to higher layers, including synchronization, timers, and random access procedures. |  |
+| Implementation scope | Changes from PHY up to higher layers, including synchronization, timers, and random access procedures. | Changes from PHY up to higher layers, including timing drift compensation, 32 HARQ process support, LEO-specific timer extensions, handover and paging protocols. |
 | Contribution | Developed and released on the OAI branch [goa-5g-ntn](https://gitlab.eurecom.fr/oai/openairinterface5g/-/commits/goa-5g-ntn), later integrated into the `develop` branch. | Developed and released on the `develop` branch. |
 
 
 ### 1.2 Contributors
 
-Contributors related to OAI NTN projects include:
+Contributors related to OAI NTN includes:
 
 - European Space Agency (ESA): Funder of 5G-GOA and 5G-LEO
-- Eurescom GmbH
+- Eurescom GmbH: Prime contractor of 5G-GOA and 5G-LEO
 - Fraunhofer Institute for Integrated Circuits (IIS): Modifications to OAI PHY/MAC and RFsimulator
-- Universität der Bundeswehr München
+- Universität der Bundeswehr München: PoC tests and Over-the-air tests of GEO
 - University of Luxembourg
-- Eurecom
+- Eurecom: Founder of OAI
 - Allbesmart LDA
-- Lasting Software
+- Lasting Software: Implementaion of SIB19 and NTN CI test
 
 
 ## Chapter 2: Current Milestone
