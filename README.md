@@ -42,15 +42,15 @@ Note: The purpose of these tables is not to exhaustively cover all NTN enhanceme
 ![image](https://www.3gpp.org/images/2024/NTN_Fig2.jpg)
 **Transparent** vs. **Regenerative** payload and elliptic beam patterns [1]
 
-![image](https://media.discordapp.net/attachments/1175780348093792427/1467566469268115670/By2xanhIWl.png?ex=6980d948&is=697f87c8&hm=9140923a6c383c43ae04880ff91822c496cf4c80c0a9b572dc93572a4a38c9a5&=&format=webp&quality=lossless&width=326&height=645)
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1467566469268115670/By2xanhIWl.png?ex=698b6548&is=698a13c8&hm=18b792351302383d74ed5a9335243e6cfd4aa32d35b336a5a9ebf11ff1f2b781&format=webp&quality=lossless&width=326&height=645)
 
 Overall illustration of an NTN with transparent payload [2]
 
-![image](https://media.discordapp.net/attachments/1175780348093792427/1467566469603791020/Byp763hUZx.png?ex=6980d948&is=697f87c8&hm=26f5fcd93117bfe673e2a8f2b3a24d49672a000a7cae5072f1ec5d97fa3936b2&=&format=webp&quality=lossless&width=765&height=678)
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1467566469603791020/Byp763hUZx.png?ex=698b6548&is=698a13c8&hm=9e996586f29856316669afaa97293b4b7ab8291dd3619e27b3b4ee2c18641c58&format=webp&quality=lossless&width=765&height=678)
 
 Overall illustration of an NTN with **regenerative** payload hosting a gNB  [2]
 
-![image](https://media.discordapp.net/attachments/1175780348093792427/1467566470069354537/rkP5p33Ubx.png?ex=6980d948&is=697f87c8&hm=86677354edc09628152585a5ff9d3650a49b1b46de3e5d395f90fdffefd40be2&=&format=webp&quality=lossless&width=947&height=662)
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1467566470069354537/rkP5p33Ubx.png?ex=698b6548&is=698a13c8&hm=7f7d0d27f21dd2220411f4d85bcb611e4436682433e165b60778afe7766cf663&format=webp&quality=lossless&width=947&height=662)
 
 Illustration of timing relationship, including $T_{\text{TA}}$, service link RTT, common TA, and $k_{\text{mac}}$  (for collocated gNB and NTN Gateway) [2]
 
@@ -81,15 +81,15 @@ where $N_{\text{TA}}$ denotes the closed-loop TA which can be updated based on T
 to frequency as in terrestrial networks, $T_{c}$ is the basic time
 unit, and $N_{\text{TA,adj}}^{\text{common}}$ and $N_{\text{TA,adj}}^{\text{UE}}$ are open-loop TA which corresponds to common TA and UE-specific TA, respectively. [4]
 
-![image](https://media.discordapp.net/attachments/1175780348093792427/1467566470434132121/r11WH6hU-x.png?ex=6980d948&is=697f87c8&hm=cdd8bf8fe8ed506912f15efde36e879d9af49c9ad3b70acfbc156f2e464f0186&=&format=webp&quality=lossless&width=996&height=744)
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1467566470434132121/r11WH6hU-x.png?ex=698b6548&is=698a13c8&hm=f7428fbdbe9d49339a2503b030df15b17abd5daa69410a985dbdd47120a72dba&format=webp&quality=lossless&width=996&height=744)
 
 Pictorial view of the TA calculation in NTN, and UL/DL radio frame timing at the NTN UE [5]
 
-![image](https://media.discordapp.net/attachments/1175780348093792427/1467566470845436239/HyVyZa3U-g.png?ex=6980d948&is=697f87c8&hm=9a1372e92cc53df739728e63a9a55970b3b09144c6f47948d0e0cf28cc7e6d59&=&format=webp&quality=lossless&width=1299&height=744)
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1467566470845436239/HyVyZa3U-g.png?ex=698b6548&is=698a13c8&hm=b0cb804f12548b9254295162c0473e532ef6b94a495efd8f2793f2f577d6b8c9&format=webp&quality=lossless&width=1299&height=744)
 
 An illustration of PUSCH transmission timing with and without $K_{\text{offset}}$ enhancement [5]
 
-![image](https://media.discordapp.net/attachments/1175780348093792427/1467566471126319116/HJVS-6nL-l.png?ex=6980d948&is=697f87c8&hm=f7129b0d61f6ac38f2bf1d099090ab03aa2ddc399e4f88871b609fb5b445fc72&=&format=webp&quality=lossless&width=1575&height=744)
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1467566471126319116/HJVS-6nL-l.png?ex=698b6548&is=698a13c8&hm=5b4c80fcfc90cfac20304cb531b86f6b9d6a854ea4cbfea17648f7bcbcc1ceca&format=webp&quality=lossless&width=1575&height=744)
 
 An illustration of MAC CE timing relationship with and without $k_{\text{mac}}$ enhancement when downlink and uplink frame timing are not aligned at gNB [5]
 
@@ -293,39 +293,44 @@ According to [USRP device documentation](https://gitlab.eurecom.fr/oai/openairin
 ## Chapter 4: Developer Guide
 > https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/code-style-contrib.md
 
-### Build OAI NTN
+### Build and Run OAI NTN
 
-[How to run a NTN configuration](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/RUNMODEM.md#how-to-run-a-ntn-configuration) introduces settings for simulating GEO and LEO satellite.
-
-#### GEO Simulation
-
-gNB
 ```bash
-cd cmake_targets
+# download OAI source code from official gitlab repository
+git clone https://gitlab.eurecom.fr/oai/openairinterface5g.git
+
+# build OAI gNB and UE for 5G NR, `-I` to install pre-requisites, `-w SIMU` to use the RF simulator
+cd ~/openairinterface5g/cmake_targets
+sudo ./build_oai -I -w SIMU --gNB --nrUE
+
+# gNB for transparent GEO satellite 5G NR NTN
+cd ~/openairinterface5g/cmake_targets
 sudo ./ran_build/build/nr-softmodem -O ../ci-scripts/conf_files/gnb.sa.band254.u0.25prb.rfsim.ntn.conf --rfsim
-```
 
-UE
-```bash
-cd cmake_targets
+# UE for transparent GEO satellite 5G NR NTN
+cd ~/openairinterface5g/cmake_targets
 sudo ./ran_build/build/nr-uesoftmodem -O ../targets/PROJECTS/GENERIC-NR-5GC/CONF/ue.conf --band 254 -C 2488400000 --CO -873500000 -r 25 --numerology 0 --ssb 60 --rfsim --rfsimulator.prop_delay 238.74
-```
 
-`--rfsimulator.prop_delay`: 設定 gNB 與 UE 之間的 propagation delay。
-
-#### LEO Simulation
-
-gNB
-```bash
-cd cmake_targets
+# gNB for trasparent LEO satellite 5G NR NTN
+cd ~/openairinterface5g/cmake_targets
 sudo ./ran_build/build/nr-softmodem -O ../ci-scripts/conf_files/gnb.sa.band254.u0.25prb.rfsim.ntn-leo.conf --rfsim
-```
 
-UE
-```bash
-cd cmake_targets
+# UE for trasparent LEO satellite 5G NR NTN
+cd ~/openairinterface5g/cmake_targets
 sudo ./ran_build/build/nr-uesoftmodem -O ../targets/PROJECTS/GENERIC-NR-5GC/CONF/ue.conf --band 254 -C 2488400000 --CO -873500000 -r 25 --numerology 0 --ssb 60 --rfsim --rfsimulator.prop_delay 20 --rfsimulator.options chanmod --time-sync-I 0.1 --ntn-initial-time-drift -46 --initial-fo 57340 --cont-fo-comp 2
 ```
+
+#### Transparent GEO Satellite 5G NR NTN
+gNB <---> nrUE
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1470646083058143313/SJxyLEdwWx.png?ex=698c0d65&is=698abbe5&hm=5fb1750c3101ba83111f7f8aedd7309428516b1c7e28b72c92a695ffbd55918d&)
+
+#### Transparent LEO Satellite 5G NR NTN
+gNB <---> nrUE
+![image](https://cdn.discordapp.com/attachments/1175780348093792427/1470646083884683410/Bktk8V_vWg.png?ex=698c0d65&is=698abbe5&hm=3bcb53543c056e82144662523dcfb8e246a7842e1b5d65516a9ebc9075bb8a5d&)
+
+:::spoiler TODO
+[Current documentation](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/RUNMODEM.md#how-to-run-a-ntn-configuration) (2026_w06) use `--rfsimulator.[0].prop_delay` parameter to setup propagation delay. However, our simulation failed with this parameter and we use the one from older documentation instead (`rfsimulator.prop_delay`). Not yet check source code to investigate this issue.
+:::
 
 ### GitLab Workflow
 
